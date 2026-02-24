@@ -22,8 +22,8 @@ with open(path.join(this_directory, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 install_requires = [
-    "prometheus-client==0.15.0",
-    "pyemvue==0.16.0",
+    "prometheus-client==0.24.1",
+    "pyemvue==0.18.9",
 ]
 
 setup(

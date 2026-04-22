@@ -23,6 +23,7 @@ import pyemvue
 
 def main():
     loglevel = os.getenv("EMVUE_EXPORTER_LOG_LEVEL", "INFO")
+    poll_delay = os.getenv("EMVUE_EXPORTER_POLL_DELAY", 30)
     logging.basicConfig(
         format="%(asctime)s %(message)s", level=getattr(logging, loglevel.upper())
     )
@@ -33,38 +34,54 @@ def main():
         os.getenv("EMVUE_EXPORTER_PASSWORD"),
     )
 
-    port = os.getenv("EMVUE_EXPORTER_PORT", 10110)
+    port = int(os.getenv("EMVUE_EXPORTER_PORT", 10110))
     prometheus_client.start_http_server(port)
 
     collectors = register_prometheus_collectors()
 
     while True:
-        set_prometheus_values(collectors, vue)
-        time.sleep(os.getenv("EMVUE_EXPORTER_POLL_DELAY", 60))
+        set_prometheus_values(collectors, vue, poll_delay)
+        time.sleep(poll_delay)
 
 
 def register_prometheus_collectors():
     collectors = {}
 
-    collectors["device_energy_kwh"] = prometheus_client.Gauge(
-        "emvue_device_energy_kwh",
+    collectors["device_energy_kWh"] = prometheus_client.Gauge(
+        "emvue_device_energy_kWh",
         "Energy Usage for device",
+        ["device_name", "channel_name"],
+    )
+    collectors["device_power_W"] = prometheus_client.Gauge(
+        "emvue_device_power_W",
+        "Power for device (calc)",
+        ["device_name", "channel_name"],
+    )
+    collectors["device_current_A"] = prometheus_client.Gauge(
+        "emvue_device_current_A",
+        "Current for device (calc)",
         ["device_name", "channel_name"],
     )
 
     return collectors
 
 
-def set_prometheus_values(collectors, vue_client):
+def set_prometheus_values(collectors, vue_client, poll_delay):
     data = get_data(vue_client)
 
     logging.info(data)
 
     for device, channels in data.items():
         for channel, usage in channels.items():
-            collectors["device_energy_kwh"].labels(
-                device_name=device, channel_name=channel
-            ).set(usage)
+            collectors["device_energy_kWh"].labels(
+                device_name=device, channel_name = channel
+            ).set(usage * poll_delay)
+            collectors["device_power_W"].labels(
+                device_name=device, channel_name = channel
+            ).set(usage * 3600 * 1000)
+            collectors["device_current_A"].labels(
+                device_name=device, channel_name = channel
+            ).set(usage * 3600 * 1000 / 120)
 
 
 def get_data(vue_client):
@@ -79,7 +96,7 @@ def get_data(vue_client):
         usage = vue_client.get_device_list_usage(
             deviceGids=[device.device_gid],
             instant=datetime.utcnow(),
-            scale=pyemvue.enums.Scale.MINUTE.value,
+            scale=pyemvue.enums.Scale.SECOND.value,
             unit=pyemvue.enums.Unit.KWH.value,
         )[device.device_gid]
 

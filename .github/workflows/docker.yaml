@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
       - develop
     paths:
       - "*.py"
@@ -15,7 +15,7 @@ on:
       - "v*"
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build-docker:
@@ -51,8 +51,8 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            # set latest tag for master branch
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
+            # set latest tag for main branch
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
             # short commit hash for develop
             type=raw,value=${{ github.sha }},enable=${{ github.ref_name == 'develop' }}
       - name: Build and push
